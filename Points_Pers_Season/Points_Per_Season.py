@@ -98,6 +98,8 @@ if ( __name__ == "__main__" ):
 
         Match_Data = Data_Processing.Calculate_Cumulative( Match_Data, "Season", "Points", "Date", "Cumulative_Points" )
 
+        Match_Data["Match_Number"] = Match_Data.groupby( "Season" ).cumcount() + 1
+
         print( "\nPoints by Season:" )
 
         for Season, Season_Data in Match_Data.groupby( "Season" ):
