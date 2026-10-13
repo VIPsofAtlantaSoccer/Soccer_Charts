@@ -264,6 +264,9 @@ class Line_Chart_Generator:
                 if ( self.Label_Postfix ):
                     Annotation += f" {self.Label_Postfix}"
 
+                # Add a consistent horizontal gap between the line endpoint and its label
+                X_End = X_End + .5
+
                 Axis.text(
                     X_End,
                     Y_End,
@@ -341,9 +344,10 @@ class Line_Chart_Generator:
         Axis.spines["bottom"].set_linewidth( 1.0 )
         Axis.spines["left"].set_linewidth( 1.0 )
 
-        # Leave horizontal room for endpoint annotations
-        Axis.margins( x=0.20 )
-
+        # Leave room for endpoint annotations without adding excess space on the left
+        Axis.margins( x=0 )
+        Axis.set_xlim( left=0, right=max( len( Series ) for Series in Data ) + 4 )
+        
         Figure.tight_layout()
 
         return Figure, Axis
