@@ -34,7 +34,6 @@ def Load_Config():
 #---------------------------------------------------------------------------------------------------------------#
 # Main Processing
 #---------------------------------------------------------------------------------------------------------------#
-
 if ( __name__ == "__main__" ):
 
     Config = Load_Config()
@@ -50,3 +49,10 @@ if ( __name__ == "__main__" ):
     Match_Data = Data_Processing.Load_CSV( CSV_Path )
 
     print( f"CSV Records Loaded: {len( Match_Data )}" )
+
+    Includes = Config["Teams"][Selected_Team].get( "Includes", [] )
+    Excludes = Config["Teams"][Selected_Team].get( "Excludes", [] )
+
+    Match_Data = Data_Processing.Apply_Filters( Match_Data, Includes, Excludes )
+
+    print( f"Records After Filtering: {len( Match_Data )}" )

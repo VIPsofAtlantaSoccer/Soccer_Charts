@@ -41,3 +41,44 @@ def Filter_Data( Data, Column, Value ):
     Filtered_Data = Data.loc[ Data[Column] == Value ].copy()
 
     return Filtered_Data
+
+
+#---------------------------------------------------------------------------------------------------------------#
+# Function: Apply_Filters
+#
+# Applies optional inclusion and exclusion rules to a pandas DataFrame.
+# Inclusion rules retain records matching any listed criterion.
+# Exclusion rules remove records matching any listed criterion.
+# Returns a filtered DataFrame without modifying the original.
+#---------------------------------------------------------------------------------------------------------------#
+def Apply_Filters( Data, Includes = None, Excludes = None ):
+
+    Filtered_Data = Data.copy()
+
+    if ( Includes ):
+        Include_Mask = pd.Series( False, index=Filtered_Data.index )
+
+        for Rule in Includes:
+            Column, Value = Rule.split( "=", 1 )
+
+            if ( Column not in Filtered_Data.columns ):
+                raise ValueError( f"Column does not exist: {Column}" )
+
+            Include_Mask |= Filtered_Data[Column].astype( str ) == Value
+
+        Filtered_Data = Filtered_Data.loc[Include_Mask ].copy()
+
+    if ( Excludes ):
+        Exclude_Mask = pd.Series( False, index=Filtered_Data.index )
+
+        for Rule in Excludes:
+            Column, Value = Rule.split( "=", 1 )
+
+            if ( Column not in Filtered_Data.columns ):
+                raise ValueError( f"Column does not exist: {Column}" )
+
+            Exclude_Mask |= Filtered_Data[Column].astype( str ) == Value
+
+        Filtered_Data = Filtered_Data.loc[ ~Exclude_Mask ].copy()
+
+    return Filtered_Data
