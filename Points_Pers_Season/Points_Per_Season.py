@@ -167,28 +167,54 @@ def Generate_Charts( Config, Team, Match_Data ):
         Series_Data.append( Season_Data["Cumulative_Points"].tolist() )
 
     Output_Directory = ( Path( __file__ ).resolve().parent / Config["Output"]["Directory"] ).resolve()
-    Output_File = Output_Directory / "Points_Per_Season" / f"{Team}_Points_Per_Season.jpg"
-
     Color_Map = None
 
     if ( Team_Config.get( "Colors" ) ):
         Color_Map = Load_Colors( Team_Config["Colors"] )
 
-    Chart_Lines.Generate_Line_Chart(
-        Series_Data=Series_Data,
-        Series_Names=Series_Names,
-        Output_File=Output_File,
-        Title=f"{Team_Config['Name']} - {Config['Chart']['Title']}",
-        X_Label=Config["Chart"]["X_Label"],
-        Y_Label=Config["Chart"]["Y_Label"],
-        Highlight_Series=Config["Chart"]["Highlight_Season"],
-        Label_Postfix="points",
-        Color_Map=Color_Map
+
+    #---------------------------------------------------------------------------------------------------------------#
+    # Configure the line chart
+    #---------------------------------------------------------------------------------------------------------------#
+    Chart = Chart_Lines.Line_Chart_Generator()
+
+    Chart.Set_Data( Series_Data, Series_Names=Series_Names, Color_Map=Color_Map )
+
+    Chart.Set_Highlight(
+        Series_Name=str( Config["Chart"]["Highlight_Season"] ),
+        Linewidth=5.0,
+        Default_Linewidth=0.75
     )
 
-    print( f"[green]Chart generated:[/] {Output_File}" )
+    Chart.Set_Labels(
+        X_Label=Config["Chart"]["X_Label"],
+        Y_Label=Config["Chart"]["Y_Label"],
+        Title=f"{Team_Config['Name']} - {Config['Chart']['Title']}",
+        Label_Postfix="points"
+    )
 
-    return Output_File
+    Chart.Set_Style(
+        Figure_Size=( 12, 6 ),
+        Title_Font_Size=18,
+        Label_Font_Size=14,
+        Tick_Font_Size=10,
+        Background_Color="black"
+    )
+
+    #---------------------------------------------------------------------------------------------------------------#
+    # Generate full and limited charts
+    #---------------------------------------------------------------------------------------------------------------#
+    Output_File_Full = Output_Directory / "Points_Per_Season" / f"{Team}_Points_Per_Season_Full.jpg"
+    Output_File_Limited = Output_Directory / "Points_Per_Season" / f"{Team}_Points_Per_Season_Limited.jpg"
+
+    Chart.Plot_Chart_Full( Output_File_Full )
+    Chart.Plot_Chart_Limited( Output_File_Limited )
+
+    print( f"[green]Full chart generated:[/] {Output_File_Full}" )
+    print( f"[green]Limited chart generated:[/] {Output_File_Limited}" )
+
+    return Output_File_Full, Output_File_Limited
+
 
 
 #---------------------------------------------------------------------------------------------------------------#
