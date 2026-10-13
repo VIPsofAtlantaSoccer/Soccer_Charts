@@ -60,10 +60,30 @@ class Line_Chart_Generator:
         # Highlight settings
         self.Highlight_Series_Name = None
         self.Highlight_Linewidth = 4.0
+        self.Current_Linewidth = 4.5
         self.Default_Linewidth = 0.7
+        self.Highlighted_Series = None
+        self.Muted_Opacity = 0.35
+        self.Highlight_Opacity = 1.0
 
         # Default seaborn styling
         sns.set_style( "darkgrid" )
+
+
+
+    #---------------------------------------------------------------------------------------------------------------#
+    # Function: Set_Highlighted_Series
+    #
+    # Configures which series receive highlighted styling and sets line opacity.
+    # Series not listed receive muted styling.
+    # Returns: None
+    #---------------------------------------------------------------------------------------------------------------#
+    def Set_Highlighted_Series( self, Series_Names, Muted_Opacity = 0.35, Highlight_Opacity = 1.0 ):
+
+        self.Highlighted_Series = {str( Name ) for Name in Series_Names}
+        self.Muted_Opacity = Muted_Opacity
+        self.Highlight_Opacity = Highlight_Opacity
+
 
 
     #---------------------------------------------------------------------------------------------------------------#
@@ -167,11 +187,11 @@ class Line_Chart_Generator:
     #---------------------------------------------------------------------------------------------------------------#
     # Function: Set_Highlight
     #
-    # Selects a series to emphasize using increased linewidth and full opacity.
-    # Configures the line widths for highlighted and non-highlighted series.
+    # Identifies the series used for limited-chart truncation.
+    # Configures line widths for highlighted, current, and non-highlighted series.
     # Returns: None
     #---------------------------------------------------------------------------------------------------------------#
-    def Set_Highlight( self, Series_Name = None, Linewidth = None, Default_Linewidth = None ):
+    def Set_Highlight( self, Series_Name = None, Linewidth = None, Default_Linewidth = None, Current_Linewidth = None ):
 
         if ( Series_Name is not None ):
             self.Highlight_Series_Name = str( Series_Name )
@@ -182,6 +202,8 @@ class Line_Chart_Generator:
         if ( Default_Linewidth is not None ):
             self.Default_Linewidth = Default_Linewidth
 
+        if ( Current_Linewidth is not None ):
+            self.Current_Linewidth = Current_Linewidth
 
     #---------------------------------------------------------------------------------------------------------------#
     # Function: Plot_Chart
@@ -236,12 +258,17 @@ class Line_Chart_Generator:
             Series_Label = str( Series_Name ) if ( Series_Name is not None ) else None
             Series_Color = Colors[Index]
 
-            if ( Series_Label == self.Highlight_Series_Name ):
-                Line_Width = self.Highlight_Linewidth
-                Line_Alpha = 1.0
+            if ( self.Highlighted_Series is not None ):
+                Is_Highlighted = Series_Label in self.Highlighted_Series
+            else:
+                Is_Highlighted = Series_Label == self.Highlight_Series_Name
+
+            if ( Is_Highlighted ):
+                Line_Width = self.Current_Linewidth if ( Series_Label == self.Highlight_Series_Name ) else self.Highlight_Linewidth
+                Line_Alpha = self.Highlight_Opacity
             else:
                 Line_Width = self.Default_Linewidth
-                Line_Alpha = 0.6
+                Line_Alpha = self.Muted_Opacity if ( self.Highlighted_Series is not None ) else 0.6
 
             # Match numbers begin at 1 rather than 0
             X_Values = list( range( 1, len( Series ) + 1 ) )
@@ -275,6 +302,8 @@ class Line_Chart_Generator:
                     Annotation,
                     ha="left",
                     va="center",
+                    #alpha=Line_Alpha,
+                    alpha=max( Line_Alpha, 0.65 ),
                     fontdict={
                         "family": "sans-serif",
                         "size": self.Line_Label_Font_Size,

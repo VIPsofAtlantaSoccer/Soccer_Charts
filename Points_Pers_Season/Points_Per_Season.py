@@ -37,10 +37,9 @@ def Load_Config():
 #---------------------------------------------------------------------------------------------------------------#
 # Function: Load_Colors
 #
-# Loads a JSON file containing series names and their assigned colors.
-# Ignores the optional _notes section used to document color selections.
+# Loads a JSON dictionary mapping highlighted seasons to their assigned colors.
 # Resolves the file path relative to the Points_Per_Season directory.
-# Returns a dictionary mapping series names to hexadecimal colors.
+# Returns the highlighted season colors.
 #---------------------------------------------------------------------------------------------------------------#
 def Load_Colors( Color_File ):
 
@@ -48,8 +47,6 @@ def Load_Colors( Color_File ):
 
     with open( Color_Path, "r", encoding="utf-8" ) as File:
         Colors = json.load( File )
-
-    Colors.pop( "_notes", None )
 
     return Colors
 
@@ -167,10 +164,15 @@ def Generate_Charts( Config, Team, Match_Data ):
         Series_Data.append( Season_Data["Cumulative_Points"].tolist() )
 
     Output_Directory = ( Path( __file__ ).resolve().parent / Config["Output"]["Directory"] ).resolve()
+
+    Color_Settings = Config["Chart"]["Style"]
+    Highlights = {}
     Color_Map = None
 
     if ( Team_Config.get( "Colors" ) ):
-        Color_Map = Load_Colors( Team_Config["Colors"] )
+        Highlights = Load_Colors( Team_Config["Colors"] )
+
+    Color_Map = {Name: Highlights.get( Name, Color_Settings.get( "Muted_Color", "#808080" ) ) for Name in Series_Names}
 
 
     #---------------------------------------------------------------------------------------------------------------#
@@ -181,9 +183,16 @@ def Generate_Charts( Config, Team, Match_Data ):
     Chart.Set_Data( Series_Data, Series_Names=Series_Names, Color_Map=Color_Map )
 
     Chart.Set_Highlight(
-        Series_Name=str( Config["Chart"]["Highlight_Season"] ),
-        Linewidth=5.0,
-        Default_Linewidth=0.75
+        Series_Name=str( Match_Data["Season"].max() ),
+        Linewidth=Color_Settings.get( "Highlight_Linewidth", 3.2 ),
+        Default_Linewidth=Color_Settings.get( "Default_Linewidth", 0.75 ),
+        Current_Linewidth=Color_Settings.get( "Current_Linewidth", 4.5 )
+    )
+
+    Chart.Set_Highlighted_Series(
+        Series_Names=Highlights.keys(),
+        Muted_Opacity=Color_Settings.get( "Muted_Opacity", 0.4 ),
+        Highlight_Opacity=Color_Settings.get( "Highlight_Opacity", 1.0 )
     )
 
     Chart.Set_Labels(
@@ -198,7 +207,7 @@ def Generate_Charts( Config, Team, Match_Data ):
         Title_Font_Size=18,
         Label_Font_Size=14,
         Tick_Font_Size=10,
-        Background_Color="black"
+        Background_Color=Color_Settings.get( "Background_Color", "black" )
     )
 
     #---------------------------------------------------------------------------------------------------------------#
@@ -221,18 +230,18 @@ def Generate_Charts( Config, Team, Match_Data ):
 # Function: Display_Social_Message
 #
 # Displays the social-media message for the selected team.
-# Uses the highlighted season's match count and the team's configured signature.
+# Uses the latest season's match count and the team's configured signature.
 # Does not create files or publish to social platforms.
 #---------------------------------------------------------------------------------------------------------------#
 def Display_Social_Message( Config, Team, Match_Data ):
 
     Team_Config = Config["Teams"][Team]
-    Highlight_Season = Config["Chart"]["Highlight_Season"]
+    Current_Season = Match_Data["Season"].max()
 
-    Season_Data = Match_Data.loc[ Match_Data["Season"] == Highlight_Season ]
+    Season_Data = Match_Data.loc[ Match_Data["Season"] == Current_Season ]
 
     if ( Season_Data.empty ):
-        print( f"[yellow]No match data for highlighted season: {Highlight_Season}[/]" )
+        print( "[yellow]No match data available for the latest season[/]" )
         return
 
     Number_Of_Games = len( Season_Data )
