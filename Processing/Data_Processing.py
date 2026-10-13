@@ -21,7 +21,7 @@ def Load_CSV( CSV_Path ):
     if ( not CSV_Path.is_file() ):
         raise FileNotFoundError( f"CSV file does not exist: {CSV_Path}" )
 
-    Data = pd.read_csv( CSV_Path )
+    Data = pd.read_csv( CSV_Path, comment="#" )
 
     return Data
 

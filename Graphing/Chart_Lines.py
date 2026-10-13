@@ -4,6 +4,8 @@
 #---------------------------------------------------------------------------------------------------------------#
 
 from pathlib import Path
+from io import BytesIO
+from PIL import Image
 
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -363,10 +365,7 @@ class Line_Chart_Generator:
 
         Figure, Axis = self.Plot_Chart( Limited=False )
 
-        Output_File = Path( Filename )
-        Output_File.parent.mkdir( parents=True, exist_ok=True )
-
-        Figure.savefig( Output_File, bbox_inches="tight", facecolor=Figure.get_facecolor() )
+        Output_File = self.Save_Figure( Figure, Filename )
         plt.close( Figure )
 
         return Output_File
@@ -382,10 +381,7 @@ class Line_Chart_Generator:
 
         Figure, Axis = self.Plot_Chart( Limited=True )
 
-        Output_File = Path( Filename )
-        Output_File.parent.mkdir( parents=True, exist_ok=True )
-
-        Figure.savefig( Output_File, bbox_inches="tight", facecolor=Figure.get_facecolor() )
+        Output_File = self.Save_Figure( Figure, Filename )
         plt.close( Figure )
 
         return Output_File
@@ -400,6 +396,40 @@ class Line_Chart_Generator:
     def Save_Chart( self, File_Name ):
 
         return self.Plot_Chart_Full( File_Name )
+
+
+
+    #---------------------------------------------------------------------------------------------------------------#
+    # Function: Save_Figure
+    #
+    # Saves a Matplotlib figure to the requested output format.
+    # Uses Pillow to convert figures to WebP, since Matplotlib does not directly support WebP.
+    # Other formats, including JPG and PNG, use Matplotlib's standard savefig functionality.
+    # Creates the destination directory if necessary.
+    # Returns the saved file path.
+    #---------------------------------------------------------------------------------------------------------------#
+    def Save_Figure( self, Figure, Filename ):
+
+        Output_File = Path( Filename )
+        Output_File.parent.mkdir( parents=True, exist_ok=True )
+
+        if ( Output_File.suffix.lower() == ".webp" ):
+
+            Image_Buffer = BytesIO()
+
+            Figure.savefig( Image_Buffer, format="png", bbox_inches="tight", facecolor=Figure.get_facecolor() )
+
+            Image_Buffer.seek( 0 )
+
+            with Image.open( Image_Buffer ) as Chart_Image:
+                Chart_Image.convert( "RGB" ).save( Output_File, format="WEBP", quality=95, method=6 )
+
+            Image_Buffer.close()
+
+        else:
+            Figure.savefig( Output_File, bbox_inches="tight", facecolor=Figure.get_facecolor() )
+
+        return Output_File
 
 
 #---------------------------------------------------------------------------------------------------------------#
