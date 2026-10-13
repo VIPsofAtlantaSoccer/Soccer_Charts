@@ -1,0 +1,75 @@
+
+#---------------------------------------------------------------------------------------------------------------#
+# Points Per Season - Configuration Example
+#---------------------------------------------------------------------------------------------------------------#
+
+[Teams.ATLUTD]
+Name = "Atlanta United"
+CSV = 'PATH_TO_YOUR_DATA\ATLUTD_Matches.csv'
+Points_System = "Standard"
+Colors = "../Dictionaries/Colors/Seasons_ATLUTD.json"
+# If specified, only records matching the listed criteria are included.
+Includes = [
+    "Comp=MLS"
+]
+# Records matching these criteria are removed.
+Excludes = [
+    "Comp=Friendly",
+    "Comp=Leagues Cup",
+    "Round=Friendly"
+]
+Signature = "#ATLUTD #MLS"
+
+[Teams.ATLUTD2]
+Name = "Atlanta United 2"
+CSV = 'PATH_TO_YOUR_DATA\ATLUTD2_Matches.csv'
+Points_System = "Shootout"
+Colors = "../Dictionaries/Colors/Seasons_ATLUTD2.json"
+# If specified, only records matching the listed criteria are included.
+Includes = [
+]
+# Records matching these criteria are removed.
+Excludes = [
+    "Comp=Friendly",
+    "Comp=Leagues Cup",
+    "Round=Friendly"
+]
+Signature = "#ATLUTD2 #MLSNextPro"
+
+
+#[Teams.Atlanta_City]
+#Name = "Atlanta City"
+#Points_System = "Standard"
+#Colors = "../Dictionaries/Colors/ATLCity.json"
+#Signature = "#ATLCTY #NWSL"
+
+
+#---------------------------------------------------------------------------------------------------------------#
+# Chart Settings
+#---------------------------------------------------------------------------------------------------------------#
+
+[Chart]
+# Team = "ATLUTD" — Process only Atlanta United.
+# Team = "ATLUTD2" — Process only Atlanta United 2.
+# Team = "ALL" — Process every team configured in [Teams] that has a CSV defined.
+Team = "ALL"
+Title = "League Points Per Season: "
+X_Label = "Match Week"
+Y_Label = "Cumulative Points"
+
+[Chart.Style]
+Background_Color = "black"
+Muted_Color = "#808080"
+Muted_Opacity = 0.4
+Highlight_Opacity = 1.0
+Highlight_Linewidth = 2.5
+Current_Linewidth = 4.5
+Default_Linewidth = 0.75
+
+#---------------------------------------------------------------------------------------------------------------#
+# Output Settings
+#---------------------------------------------------------------------------------------------------------------#
+
+[Output]
+Directory = '..\Output'
+Format = "webp"
