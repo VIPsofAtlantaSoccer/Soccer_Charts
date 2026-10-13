@@ -189,7 +189,7 @@ def Generate_Charts( Config, Team, Match_Data ):
     Chart.Set_Labels(
         X_Label=Config["Chart"]["X_Label"],
         Y_Label=Config["Chart"]["Y_Label"],
-        Title=f"{Team_Config['Name']} - {Config['Chart']['Title']}",
+        Title=f"{Config['Chart']['Title']}{Team_Config['Name']}",
         Label_Postfix="points"
     )
 
@@ -204,8 +204,9 @@ def Generate_Charts( Config, Team, Match_Data ):
     #---------------------------------------------------------------------------------------------------------------#
     # Generate full and limited charts
     #---------------------------------------------------------------------------------------------------------------#
-    Output_File_Full = Output_Directory / "Points_Per_Season" / f"{Team}_Points_Per_Season_Full.jpg"
-    Output_File_Limited = Output_Directory / "Points_Per_Season" / f"{Team}_Points_Per_Season_Limited.jpg"
+    Output_Format = Config["Output"]["Format"]
+    Output_File_Full = Output_Directory / "Points_Per_Season" / f"{Team}_Points_Per_Season_Full.{Output_Format}"
+    Output_File_Limited = Output_Directory / "Points_Per_Season" / f"{Team}_Points_Per_Season_Limited.{Output_Format}"
 
     Chart.Plot_Chart_Full( Output_File_Full )
     Chart.Plot_Chart_Limited( Output_File_Limited )
@@ -216,6 +217,33 @@ def Generate_Charts( Config, Team, Match_Data ):
     return Output_File_Full, Output_File_Limited
 
 
+#---------------------------------------------------------------------------------------------------------------#
+# Function: Display_Social_Message
+#
+# Displays the social-media message for the selected team.
+# Uses the highlighted season's match count and the team's configured signature.
+# Does not create files or publish to social platforms.
+#---------------------------------------------------------------------------------------------------------------#
+def Display_Social_Message( Config, Team, Match_Data ):
+
+    Team_Config = Config["Teams"][Team]
+    Highlight_Season = Config["Chart"]["Highlight_Season"]
+
+    Season_Data = Match_Data.loc[ Match_Data["Season"] == Highlight_Season ]
+
+    if ( Season_Data.empty ):
+        print( f"[yellow]No match data for highlighted season: {Highlight_Season}[/]" )
+        return
+
+    Number_Of_Games = len( Season_Data )
+    Signature = Team_Config.get( "Signature", "" )
+
+    Message = f"Number of Points Each Season through {Number_Of_Games} games"
+
+    if ( Signature ):
+        Message += f"\n{Signature}"
+
+    print( f"\n[cyan]{Message}[/]" )
 
 #---------------------------------------------------------------------------------------------------------------#
 # Main Processing
@@ -235,9 +263,8 @@ if ( __name__ == "__main__" ):
     Teams = Get_Selected_Teams( Config )
 
     for Team in Teams:
-
         Match_Data = Load_Match_Data( Config, Team )
-
         Match_Data = Prepare_Season_Data( Config, Team, Match_Data )
 
         Generate_Charts( Config, Team, Match_Data )
+        Display_Social_Message( Config, Team, Match_Data )
