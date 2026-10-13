@@ -9,12 +9,14 @@ import tomllib
 from pathlib import Path
 from rich import print
 import pandas as pd
+import json
 
 Project_Root = Path( __file__ ).resolve().parent.parent
 sys.path.insert( 0, str( Project_Root ) )
 
 from Processing import Data_Processing
 from Processing import Soccer_Processing
+from Graphing import Chart_Lines
 
 
 #---------------------------------------------------------------------------------------------------------------#
@@ -32,22 +34,34 @@ def Load_Config():
 
     return Config
 
+#---------------------------------------------------------------------------------------------------------------#
+# Function: Load_Colors
+#
+# Loads a JSON file containing series names and their assigned colors.
+# Ignores the optional _notes section used to document color selections.
+# Resolves the file path relative to the Points_Per_Season directory.
+# Returns a dictionary mapping series names to hexadecimal colors.
+#---------------------------------------------------------------------------------------------------------------#
+def Load_Colors( Color_File ):
+
+    Color_Path = ( Path( __file__ ).resolve().parent / Color_File ).resolve()
+
+    with open( Color_Path, "r", encoding="utf-8" ) as File:
+        Colors = json.load( File )
+
+    Colors.pop( "_notes", None )
+
+    return Colors
 
 #---------------------------------------------------------------------------------------------------------------#
-# Main Processing
+# Function: Get_Selected_Teams
+#
+# Determines which teams to process based on the Chart.Team configuration.
+# Supports an individual team or ALL configured teams with CSV files.
+# Validates that a specifically selected team exists.
+# Returns a list of team identifiers.
 #---------------------------------------------------------------------------------------------------------------#
-
-#---------------------------------------------------------------------------------------------------------------#
-# Main Processing
-#---------------------------------------------------------------------------------------------------------------#
-if ( __name__ == "__main__" ):
-
-    Config = Load_Config()
-
-    print( f"[green]Configuration loaded successfully[/]" )
-    print( f"Selected Team: {Config['Chart']['Team']}" )
-    print( f"Chart Title: {Config['Chart']['Title']}" )
-    print( f"Output Directory: {Config['Output']['Directory']}" )
+def Get_Selected_Teams( Config ):
 
     Selected_Team = Config["Chart"]["Team"]
 
@@ -59,48 +73,145 @@ if ( __name__ == "__main__" ):
 
         Teams = [Selected_Team]
 
+    return Teams
+
+
+#---------------------------------------------------------------------------------------------------------------#
+# Function: Load_Match_Data
+#
+# Loads the selected team's CSV using the generic Data_Processing module.
+# Removes duplicate matches and applies the team's configured inclusion and exclusion rules.
+# Displays record counts using Rich.
+# Returns the filtered match DataFrame.
+#---------------------------------------------------------------------------------------------------------------#
+def Load_Match_Data( Config, Team ):
+
+    Team_Config = Config["Teams"][Team]
+
+    if ( not Team_Config.get( "CSV" ) ):
+        raise ValueError( f"No CSV configured for team: {Team}" )
+
+    print( f"\n[cyan]Processing: {Team_Config['Name']}[/]" )
+
+    CSV_Path = Team_Config["CSV"]
+    Match_Data = Data_Processing.Load_CSV( CSV_Path )
+
+    print( f"CSV Records Loaded: {len( Match_Data )}" )
+
+    Records_Before = len( Match_Data )
+
+    Match_Data = Data_Processing.Remove_Duplicates( Match_Data, ["Date", "Comp", "Round", "Opponent"] )
+
+    print( f"Duplicate Records Removed: {Records_Before - len( Match_Data )}" )
+
+    Includes = Team_Config.get( "Includes", [] )
+    Excludes = Team_Config.get( "Excludes", [] )
+
+    Match_Data = Data_Processing.Apply_Filters( Match_Data, Includes, Excludes )
+
+    print( f"Records After Filtering: {len( Match_Data )}" )
+
+    return Match_Data
+
+
+#---------------------------------------------------------------------------------------------------------------#
+# Function: Prepare_Season_Data
+#
+# Calculates match points using the team's configured scoring system.
+# Extracts the season from each match date and calculates cumulative points within each season.
+# Assigns sequential match numbers, allowing seasons of different lengths.
+# Returns the prepared match DataFrame.
+#---------------------------------------------------------------------------------------------------------------#
+def Prepare_Season_Data( Config, Team, Match_Data ):
+
+    Team_Config = Config["Teams"][Team]
+    Points_System = Team_Config["Points_System"]
+
+    Match_Data = Soccer_Processing.Calculate_Match_Points( Match_Data, Points_System )
+
+    print( f"Matches With Valid Results: {len( Match_Data )}" )
+    print( f"Total Match Points: {Match_Data['Points'].sum()}" )
+
+    Match_Data["Date"] = pd.to_datetime( Match_Data["Date"], errors="raise" )
+    Match_Data["Season"] = Match_Data["Date"].dt.year
+
+    Match_Data = Data_Processing.Calculate_Cumulative( Match_Data, "Season", "Points", "Date", "Cumulative_Points" )
+
+    Match_Data["Match_Number"] = Match_Data.groupby( "Season" ).cumcount() + 1
+
+    return Match_Data
+
+
+#---------------------------------------------------------------------------------------------------------------#
+# Function: Generate_Charts
+#
+# Groups prepared match data by season and creates cumulative points series.
+# Displays season-by-season match counts and final point totals.
+# Generates a line chart using the reusable Chart_Lines module.
+# Saves the chart to the configured output directory.
+# Returns the generated chart file path.
+#---------------------------------------------------------------------------------------------------------------#
+def Generate_Charts( Config, Team, Match_Data ):
+
+    Team_Config = Config["Teams"][Team]
+
+    print( "\nPoints by Season:" )
+
+    Series_Data = []
+    Series_Names = []
+
+    for Season, Season_Data in Match_Data.groupby( "Season" ):
+        print( f"{Season}: {len( Season_Data )} matches, {Season_Data['Cumulative_Points'].iloc[-1]} points" )
+
+        Series_Names.append( str( Season ) )
+        Series_Data.append( Season_Data["Cumulative_Points"].tolist() )
+
+    Output_Directory = ( Path( __file__ ).resolve().parent / Config["Output"]["Directory"] ).resolve()
+    Output_File = Output_Directory / "Points_Per_Season" / f"{Team}_Points_Per_Season.jpg"
+
+    Color_Map = None
+
+    if ( Team_Config.get( "Colors" ) ):
+        Color_Map = Load_Colors( Team_Config["Colors"] )
+
+    Chart_Lines.Generate_Line_Chart(
+        Series_Data=Series_Data,
+        Series_Names=Series_Names,
+        Output_File=Output_File,
+        Title=f"{Team_Config['Name']} - {Config['Chart']['Title']}",
+        X_Label=Config["Chart"]["X_Label"],
+        Y_Label=Config["Chart"]["Y_Label"],
+        Highlight_Series=Config["Chart"]["Highlight_Season"],
+        Label_Postfix="points",
+        Color_Map=Color_Map
+    )
+
+    print( f"[green]Chart generated:[/] {Output_File}" )
+
+    return Output_File
+
+
+#---------------------------------------------------------------------------------------------------------------#
+# Main Processing
+#
+# Loads application configuration, determines the selected teams, and coordinates
+# data loading, season calculations, and chart generation for each team.
+#---------------------------------------------------------------------------------------------------------------#
+if ( __name__ == "__main__" ):
+
+    Config = Load_Config()
+
+    print( f"[green]Configuration loaded successfully[/]" )
+    print( f"Selected Team: {Config['Chart']['Team']}" )
+    print( f"Chart Title: {Config['Chart']['Title']}" )
+    print( f"Output Directory: {Config['Output']['Directory']}" )
+
+    Teams = Get_Selected_Teams( Config )
+
     for Team in Teams:
 
-        Team_Config = Config["Teams"][Team]
+        Match_Data = Load_Match_Data( Config, Team )
 
-        if ( not Team_Config.get( "CSV" ) ):
-            raise ValueError( f"No CSV configured for team: {Team}" )
+        Match_Data = Prepare_Season_Data( Config, Team, Match_Data )
 
-        print( f"\n[cyan]Processing: {Team_Config['Name']}[/]" )
-
-        CSV_Path = Team_Config["CSV"]
-        Match_Data = Data_Processing.Load_CSV( CSV_Path )
-
-        print( f"CSV Records Loaded: {len( Match_Data )}" )
-
-        Records_Before = len( Match_Data )
-
-        Match_Data = Data_Processing.Remove_Duplicates( Match_Data, ["Date", "Comp", "Round", "Opponent"] )
-
-        print( f"Duplicate Records Removed: {Records_Before - len( Match_Data )}" )
-
-        Includes = Team_Config.get( "Includes", [] )
-        Excludes = Team_Config.get( "Excludes", [] )
-
-        Match_Data = Data_Processing.Apply_Filters( Match_Data, Includes, Excludes )
-
-        print( f"Records After Filtering: {len( Match_Data )}" )
-
-        Points_System = Team_Config["Points_System"]
-
-        Match_Data = Soccer_Processing.Calculate_Match_Points( Match_Data, Points_System )
-
-        print( f"Matches With Valid Results: {len( Match_Data )}" )
-        print( f"Total Match Points: {Match_Data['Points'].sum()}" )
-
-        Match_Data["Date"] = pd.to_datetime( Match_Data["Date"], errors="raise" )
-        Match_Data["Season"] = Match_Data["Date"].dt.year
-
-        Match_Data = Data_Processing.Calculate_Cumulative( Match_Data, "Season", "Points", "Date", "Cumulative_Points" )
-
-        Match_Data["Match_Number"] = Match_Data.groupby( "Season" ).cumcount() + 1
-
-        print( "\nPoints by Season:" )
-
-        for Season, Season_Data in Match_Data.groupby( "Season" ):
-            print( f"{Season}: {len( Season_Data )} matches, {Season_Data['Cumulative_Points'].iloc[-1]} points" )
+        Generate_Charts( Config, Team, Match_Data )
